@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mini Haxball</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background: black;
+    }
+    canvas {
+      display: block;
+      background: green;
+    }
+    #startButton {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 32px;
+      padding: 20px;
+      background: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <button id="startButton">Oyunu Başlat</button>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    const startButton = document.getElementById("startButton");
+    let gameStarted = false;
+
+    const player1 = { x: 100, y: height / 2, r: 20, color: "white", speed: 5, up: "w", down: "s", left: "a", right: "d", shift: false, score: 0 };
+    const player2 = { x: width - 100, y: height / 2, r: 20, color: "red", speed: 5, up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight", shift: false, score: 0 };
+
+    const ball = { x: width / 2, y: height / 2, r: 10, speedX: 0, speedY: 0, maxSpeed: 8 };
+
+    const keys = {};
+
+    const goalWidth = 150;
+    const goalHeight = 200;
+
+    document.addEventListener("keydown", e => {
+      keys[e.key] = true;
+      if (e.key === "Shift") player1.shift = true;
+      if (e.key === "/") player2.shift = true;
+    });
+
+    document.addEventListener("keyup", e => {
+      keys[e.key] = false;
+      if (e.key === "Shift") player1.shift = false;
+      if (e.key === "/") player2.shift = false;
+    });
+
+    function resetBall() {
+      ball.x = width / 2;
+      ball.y = height / 2;
+      ball.speedX = 0;
+      ball.speedY = 0;
+    }
+
+    function drawPlayer(p) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.fill();
+    }
+
+    function movePlayer(p) {
+      if (keys[p.up]) p.y -= p.speed;
+      if (keys[p.down]) p.y += p.speed;
+      if (keys[p.left]) p.x -= p.speed;
+      if (keys[p.right]) p.x += p.speed;
+
+      // Harita dışına çıkmasın
+      p.x = Math.max(p.r, Math.min(canvas.width - p.r, p.x));
+      p.y = Math.max(p.r, Math.min(canvas.height - p.r, p.y));
+    }
+
+    function checkCollision(p) {
+      let dx = ball.x - p.x;
+      let dy = ball.y - p.y;
+      let distance = Math.sqrt(dx * dx + dy * dy);
+      if (distance < ball.r + p.r) {
+        if (p.shift) {
+          ball.speedX = dx * 0.5;
+          ball.speedY = dy * 0.5;
+        } else {
+          ball.x += dx * 0.05;
+          ball.y += dy * 0.05;
+        }
+      }
+    }
+
+    function updateBall() {
+      ball.x += ball.speedX;
+      ball.y += ball.speedY;
+
+      // Sürtünme
+      ball.speedX *= 0.98;
+      ball.speedY *= 0.98;
+
+      // Kenarlardan sekme
+      if (ball.y - ball.r < 0 || ball.y + ball.r > height) ball.speedY *= -1;
+
+      // Gol kontrolü
+      if (ball.x - ball.r < 0 && ball.y > height / 2 - goalHeight / 2 && ball.y < height / 2 + goalHeight / 2) {
+        player2.score++;
+        resetBall();
+      } else if (ball.x + ball.r > width && ball.y > height / 2 - goalHeight / 2 && ball.y < height / 2 + goalHeight / 2) {
+        player1.score++;
+        resetBall();
+      }
+
+      // Yan duvarlardan sekme
+      if (ball.x - ball.r < 0 || ball.x + ball.r > width) ball.speedX *= -1;
+    }
+
+    function drawGoals() {
+      ctx.fillStyle = "#ffffff55";
+      ctx.fillRect(0, height / 2 - goalHeight / 2, 10, goalHeight);
+      ctx.fillRect(width - 10, height / 2 - goalHeight / 2, 10, goalHeight);
+    }
+
+    function drawScore() {
+      ctx.fillStyle = "white";
+      ctx.font = "30px Arial";
+      ctx.fillText(`${player1.score}`, width / 2 - 50, 50);
+      ctx.fillText(`${player2.score}`, width / 2 + 30, 50);
+    }
+
+    function gameLoop() {
+      if (!gameStarted) return;
+
+      ctx.clearRect(0, 0, width, height);
+
+      movePlayer(player1);
+      movePlayer(player2);
+      updateBall();
+      checkCollision(player1);
+      checkCollision(player2);
+
+      drawGoals();
+      drawPlayer(player1);
+      drawPlayer(player2);
+      drawScore();
+
+      // Topu çiz
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+      ctx.fillStyle = "yellow";
+      ctx.fill();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    startButton.onclick = () => {
+      gameStarted = true;
+      startButton.style.display = "none";
+      resetBall();
+      gameLoop();
+    };
+  </script>
+</body>
+</html>
